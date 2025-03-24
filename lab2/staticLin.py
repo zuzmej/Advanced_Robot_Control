@@ -266,7 +266,7 @@ class SimulatorDynamics(Simulator):
         # expressed in linearized coordinates
         # use lecture notes. Remember to use 
         # np.dot() or '@' to multiply matrices together        
-        Mh = RT @ Ms * R
+        Mh = RT @ Ms @ R
         Ch = RT @ (Ms @ R_d1 + Cs @ R)
         Bh = RT @ Bs
         
@@ -324,9 +324,10 @@ class SimulatorKinematics(Simulator):
         
         self._model.state = q
         G = self._model.G
-        
-        dh_dq = np.array([[1, 2, 3],
-                          [4, 5, 6]])
+
+        theta = q[2]
+        dh_dq = np.array([[1, 0, -e * np.sin(theta + delta)],
+                          [0, 1, e * np.cos(theta + delta)]])
         Rinv = dh_dq @ G[0:3,:]
         detRinv = np.linalg.det(Rinv)
         
@@ -334,12 +335,12 @@ class SimulatorKinematics(Simulator):
         detR = np.linalg.det(R)
         
         hd, hd_d1, _ = self._trajectory(t)
-        eh = np.zeros((2))
         
         # TODO: some calculations
-        
-        h_d1 = np.zeros((2))        
-        k_d1 = np.zeros((5))
+        eh = h - hd 
+        Kp = 200
+        h_d1 = hd_d1 - Kp * eh
+        k_d1 = G @ R @ h_d1
         
         h_d2 = np.array([0, 0])        
         new_state = np.concatenate([h_d1, h_d2, k_d1])

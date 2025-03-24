@@ -7,7 +7,8 @@ def main():
     start = np.array([0.1, 0.1, np.pi/2*0.1, 0, 0])
     dt = 0.01
     model = UnicycleModel(state=start, dt=dt)
-    simulator = SimulatorDynamics
+    simulator = SimulatorKinematics
+    # simulator = SimulatorDynamics
     sim = simulator(model=model, dt=dt)
     model.state = start
     h = model.h
@@ -15,7 +16,7 @@ def main():
     initial_condition = np.concatenate([h, h_d1, start])
     
     # TODO choose trajectory generator
-    trajectory_generator = trajectory_generator_square
+    trajectory_generator = trajectory_generator_circle
 
     stats, solver = sim.run(initial_condition, 6, dt, trajectory_generator)
     stats = {'t': solver['t'],
