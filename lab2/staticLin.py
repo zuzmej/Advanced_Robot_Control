@@ -151,8 +151,8 @@ def trajectory_generator_square(t, dt=1):
 def trajectory_generator_circle(t, w=np.pi * 0.4, offset=0.2, A=1.0):
     h = np.array([A*np.cos(t*w + offset), A*np.sin(t*w + offset)])
     # TODO: calculate first and second derivative
-    h_d1 = np.array([t, t])    
-    h_d2 = np.array([t, t])
+    h_d1 = np.array([-A * w * np.sin(t * w + offset), A * w * np.cos(t * w + offset)])
+    h_d2 = np.array([-A * w**2 * np.cos(t * w + offset), -A * w**2 * np.sin(t * w + offset)])
     return h, h_d1, h_d2
 
 
@@ -261,19 +261,18 @@ class SimulatorDynamics(Simulator):
         Kd = 20
         
         # TODO: calculate errors and theirs first derivative
-        eh = np.zeros((2))
-        eh_d1 = np.zeros((2)) 
+        eh = h - hd
+        eh_d1 = h_d1 - hd_d1
         
         # TODO: introduce new input to the system
-        v = np.zeros((2))
+        v = hd_d2 - Kp * eh - Kd * eh_d1
              
-        # TODO: calculate control signals
-        u = np.array([0.1, 0.1])    # constant control signals for both wheels
-        
+        # TODO: calculate control signals       
         Dh = np.zeros((2))
         Fh = -Mhinv @ Ch @ h_d1 - Mhinv @ Dh
         Gh = Mhinv @ Bh
-         
+        
+        u = np.linalg.inv(Gh) @ (v - Fh)
         
         # TODO calculate h second derivative, h''(q)
         h_d2 = Fh + Gh @ u
