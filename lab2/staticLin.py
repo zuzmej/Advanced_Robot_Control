@@ -131,12 +131,30 @@ class UnicycleModel(Model):
         
 
 def trajectory_generator_square(t, dt=1):
+    # TODO: generate square trajectory
+    # with e.g. piece wise approach
     if type(t) != np.ndarray:
-        # TODO: generate square trajectory
-        # with e.g. piece wise approach
-        h = np.array([0, 0])
-        h_d1 = np.array([0, 0])    
-        h_d2 = np.array([0, 0])
+        L = 1  # length of side of a square
+        v = L / dt  # constant velocity; dt -- time needed to do one side
+        phase = int(t % (4 * dt))    # 4dt -- time to do the whole square once
+        position = v * (t % (4 * dt) % dt)  # ile procent trasy na danym boku udało się już przejść w danym t
+
+        if phase == 0:          # move to the right from [0,0] to [L, 0]
+            h = np.array([position, 0])  
+            h_d1 = np.array([v, 0])
+        elif phase == 1:        # move up from [L,0] to [L,L]
+            h = np.array([L, position])
+            h_d1 = np.array([0, v])
+        elif phase == 2:        # move left from [L,L] to [0,L]
+            h = np.array([L - position, L])
+            h_d1 = np.array([-v, 0])
+        else:                   # move down from [0,L] to [0,0]
+            h = np.array([0, L - position])
+            h_d1 = np.array([0, -v])
+
+        h_d2 = np.array([0, 0])  # constant velocity, no acceleration
+
+
     else:
         # do not change below code of this function
         h = np.zeros((2, len(t)))
