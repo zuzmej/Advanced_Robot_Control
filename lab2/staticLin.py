@@ -174,6 +174,16 @@ def trajectory_generator_circle(t, w=np.pi * 0.4, offset=0.2, A=1.0):
     return h, h_d1, h_d2
 
 
+def trajectory_generator_eight(t, w=np.pi * 0.4, offset=0.2, A=1.0):
+    h = np.array([A*np.cos(t*w + offset), A*np.sin(t*w + offset)])
+    h_d1 = np.array([-A * w * np.sin(t * w + offset), A * w * np.cos(t * w + offset)])
+    h_d2 = np.array([-A * w**2 * np.cos(t * w + offset), -A * w**2 * np.sin(t * w + offset)])
+    
+    # calculate both circles at the same time, second one with the offset and based on time draw the correct circle + change orientation
+    
+    return h, h_d1, h_d2
+
+
 class Simulator:
     __metaclass__ = ABCMeta
         
