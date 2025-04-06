@@ -46,6 +46,11 @@ class UnicycleModel(Model):
     def step(self, u: np.array):
         # TODO given current state (self._state) and control inputs u
         # evaluate new state after time self._dt
+        K = np.array([[np.cos(self.state[2]), 0],
+                      [np.sin(self.state[2]), 0],
+                      [0                    , 1]])
+        dx = np.matmul(K, u)    # matrix multiplication
+        self._state = self._state + dx * self._dt
         
         return self._state
         
@@ -266,27 +271,28 @@ class MPC:
             # TODO
             # 1. Append m first points from the optimization solution
             # to the solution list
-            
+            solution.append(result.x[:m])   # result.x -- wektor optymalnych wartosci
             
             # 2. Update model's state with current state
-            
+            self.model.state = self.model_state     # @state.setter
             
             # 3. Calculate next state of the model given 
             # latest control signals (at the end of solution list
             # which was updated in point 1.
-            
+            state = self.model.step(solution[-1])
             
             # 4. Save new state as new point on path
             # Append it to path list
-            
+            path.append(state)
             
             # 5. Preserve last vector of control input by
             # removing first m values from optimization result and 
             # assigning it to control input list u
-            
+            u = result.x[m:]    # u = result.x[m:].tolist()
             
             # 6. Extend control input list with m  
             # values, e.g. with m zeros
+            u = np.concatenate((u, np.zeros(m))) # u.extend([0] * m)
             
             # Statistics
             diff = state[0:2] - goal[0:2]
@@ -336,14 +342,22 @@ class MPC:
             # iterate new state of the model
             # TODO: 1. run step on the model 
             # providing control signals
+            u_step = u[i * m: (i + 1) * m]  # np.: u[2:4] dla drugiego kroku -- wyciagamy z listy konkretne sterowania
+            state_n = self.model.step(u_step)
             
             # calculate distance to the goal
             # TODO: 2. calculate distance to goal based on 
             # newly evaluated state, and evaluate angle difference 
             # between current orientation and goal orientation
+            x, y, theta = state_n
+            xg, yg, thetag = self._goal
+            dist_to_goal = np.linalg.norm([x - xg, y - yg])
+            angle_diff = abs(theta - thetag) 
+
             
             # TODO: 3. using the distance to goal 
             # calculate cost and add it to overall 'cost'
+            cost += 3*dist_to_goal + angle_diff
             
             for obstacle in self._obstacles:
                 pass

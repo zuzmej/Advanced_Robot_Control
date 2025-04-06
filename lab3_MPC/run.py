@@ -18,7 +18,7 @@ def main():
     # TODO obstacles
     # obstacles.append(Circle(np.array([1.2, 0.2]), radius=0.1, safe_margin=0.2))
     # obstacles.append(Rectangle(np.array([1.2, 0.2]), width=0.5, height=0.5, orientationDeg=45, safe_margin=0.2))
-    solution, path = mpc.run(start, goal, obstacles=obstacles)
+    solution, path, stats = mpc.run(start, goal, obstacles=obstacles)
     
     print("Solution")
     np.set_printoptions(precision=4)
