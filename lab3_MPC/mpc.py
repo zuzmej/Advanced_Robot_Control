@@ -184,8 +184,22 @@ class Rectangle(Obstacle):
         # check if there is collision with the rectangle
         # for this you can use points, center of the rectangle 
         # or other technique
+        dist_from_point_to_center = point[:2] - self._center
 
-        return False, distance
+        rotation_matrix = np.array([[np.cos(-self._orientationRad), -np.sin(-self._orientationRad)],
+                                    [np.sin(-self._orientationRad),  np.cos(-self._orientationRad)]])
+        local_point = rotation_matrix @ dist_from_point_to_center # rotate coordinate system 
+
+        half_width = self._width / 2 + margin
+        half_height = self._height / 2 + margin
+
+        inside_x = -half_width <= local_point[0] <= half_width
+        inside_y = -half_height <= local_point[1] <= half_height
+
+        is_inside = inside_x and inside_y
+
+        return is_inside, distance
+
     
     def inside(self, point: np.array):
         return self._inside(point)
@@ -361,14 +375,14 @@ class MPC:
             
             for obstacle in self._obstacles:
                 # TODO: 4. evaluate possible collision with obstacles
+
+                is_inside_safe, dist_from_safe = obstacle.inside_safe(state_n[:2])
                 is_collision, dist_to_obstacle_center = obstacle.inside(state_n[:2])
-                if is_collision:
+                if is_inside_safe:
+                    cost += 5
+                elif is_collision:
                     cost += 100 # the closer we get to an obstacle the higher should be the cost
-                elif dist_to_obstacle_center <= obstacle.radius_safe:
-                    cost += 7
-                # else:
-                #     cost -= 2
-                
+    
         return cost
     
     def plot(self, path: list, goal: np.array, dt: float, animationFile=''):
