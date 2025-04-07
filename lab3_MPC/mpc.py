@@ -111,7 +111,7 @@ class Circle(Obstacle):
 
     def distance(self, point: np.array):
         # TODO calculate distance to the center of circular obstacle
-        distance = 0
+        distance = np.linalg.norm(point[:2] - self._center)
         return distance
     
     def _inside(self, point: np.array, radius):
@@ -360,8 +360,14 @@ class MPC:
             cost += 3*dist_to_goal + angle_diff
             
             for obstacle in self._obstacles:
-                pass
                 # TODO: 4. evaluate possible collision with obstacles
+                is_collision, dist_to_obstacle_center = obstacle.inside(state_n[:2])
+                if is_collision:
+                    cost += 100 # the closer we get to an obstacle the higher should be the cost
+                elif dist_to_obstacle_center <= obstacle.radius_safe:
+                    cost += 7
+                # else:
+                #     cost -= 2
                 
         return cost
     
