@@ -9,7 +9,7 @@ def main():
     goal = np.array([3.0, 1.0, 0.2])
     model = UnicycleModel(np.zeros((3, 1)), 0.1, 0.05, 0.06)
     # TODO Ackerman model
-    # model = AckermanModel(np.zeros((3, 1)), 0.15, 0.06)
+    model = AckermanModel(np.zeros((3, 1)), 0.15, 0.06)
     dt = 0.5
     mpc = MPC(model, 20, dt)
     print("Calculating trajectory")

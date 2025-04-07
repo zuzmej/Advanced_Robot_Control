@@ -69,6 +69,11 @@ class AckermanModel(Model):
         # TODO given current state (self._state) and control inputs u
         # evaluate new state after time self._dt
         
+        dx = u[0] * np.cos(self.state[2])
+        dy = u[0] * np.sin(self.state[2])
+        dtheta = u[0] / self.l * np.tan(u[1]) 
+        self._state = self._state + np.array([dx, dy, dtheta]) * self._dt
+
         return self._state
         
     @property
