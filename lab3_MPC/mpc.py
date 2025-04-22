@@ -382,15 +382,7 @@ class MPC:
                 # TODO: 4. evaluate possible collision with obstacles
                 is_inside_safe, dist_from_safe = obstacle.inside_safe(state_n[:2])
                 is_collision, dist_to_obstacle_center = obstacle.inside(state_n[:2])
-                # if is_inside_safe:
-                #     cost += 6*(np.tanh(dist_to_obstacle_center)+1)
-                # cost += 5*np.tanh(1/(dist_to_obstacle_center + 0.0001))
-                is_inside_safe, dist_from_safe = obstacle.inside_safe(state_n[:2])
-                is_collision, dist_to_obstacle_center = obstacle.inside(state_n[:2])
-                if is_inside_safe:
-                    cost += 5
-                elif is_collision:
-                    cost += 100
+                cost += 5.0 * (1.0 - np.tanh(dist_from_safe))
     
         return cost
     
