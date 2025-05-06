@@ -138,9 +138,12 @@ int main(void) {
 	while (1) {
 
 		// --> place routine reading from ADC for subtask 1 
-		measurement = HAL_ADC_GetValue(&hadc1);
-		uint32_t time = HAL_GetTick();
-		printf("ADC: %u, time: %lu \n", measurement, (unsigned long)time);
+		if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK){
+			measurement = HAL_ADC_GetValue(&hadc1);
+			printf("ADC: %u; time: %lu \n", measurement, HAL_GetTick());
+			HAL_ADC_Start(&hadc1);
+		}
+		HAL_Delay(1000);
 
 		/* USER CODE END WHILE */
 
