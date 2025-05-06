@@ -72,18 +72,21 @@ uint16_t measurement;
 SemaphoreHandle_t mutex;
 
 void measureTask(void *args) {
-
 	TickType_t xLastWakeTime;
 	xLastWakeTime = xTaskGetTickCount();
 
 	for (;;) {
-		if( xSemaphoreTake(mutex, ( TickType_t ) 10 ) == pdTRUE ){
-			measurement = HAL_ADC_GetValue(&hadc1);
-			xSemaphoreGive(mutex);
+		if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK){
+			if( xSemaphoreTake(mutex, ( TickType_t ) 10 ) == pdTRUE ){
+				measurement = HAL_ADC_GetValue(&hadc1);
+				xSemaphoreGive(mutex);
+				HAL_ADC_Start(&hadc1);
+			}
 		}
 		vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(1000));
 	}
 }
+
 
 void commTask(void *args) {
 	TickType_t xLastWakeTime;
@@ -91,7 +94,7 @@ void commTask(void *args) {
 
 	for (;;) {
 		if( xSemaphoreTake(mutex, ( TickType_t ) 10 ) == pdTRUE ){
-			printf("ADC: %u, time: %lu \r\n", measurement, HAL_GetTick()); /* %ld ? */
+			printf("%u; %lu \r\n", measurement, HAL_GetTick());
 			xSemaphoreGive(mutex);
 		}
 		vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(1000));
