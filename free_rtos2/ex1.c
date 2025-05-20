@@ -161,7 +161,8 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 	while (1) {
-		printf("Measured value: %u; time: %lu \n", measurement, HAL_GetTick());
+//		printf("Measured value: %u; time: %lu \n", measurement, HAL_GetTick());
+		printf("259382; %lu; %u\r\n", HAL_GetTick(), measurement);
 		HAL_Delay(1000);
     /* USER CODE END WHILE */
 
