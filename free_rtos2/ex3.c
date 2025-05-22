@@ -71,6 +71,8 @@ int _write(int file, char *ptr, int len) {
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+
+// subtask 3:
 typedef struct {
 	uint16_t measurement;
 	uint32_t counter;
@@ -90,6 +92,7 @@ uint8_t queueError = QueueOK;
 SemaphoreHandle_t mutex;
 QueueHandle_t queue;
 
+// subtask 3:
 void measureTask(void *args) {
 	TickType_t xLastWakeTime;
 	BaseType_t xStatus;
@@ -125,9 +128,11 @@ void commTask(void *args) {
 	uint32_t last_measurement_id = 0;
 	uint16_t period = 400;
 	uint8_t new_data_flag = 0; // 0 = no new data ; 1 = new data available
-	uint8_t error_flag = 0; // 0 = fine ; 1 = queue is empty
+	uint8_t error_flag = 1; // 0 = fine ; 1 = queue is empty
+	BaseType_t queue_size;
 
 	xLastWakeTime = xTaskGetTickCount();
+	queue_size = uxQueueMessagesWaiting(queue);
 
 	for (;;) {
 		if (xQueuePeek(queue, &data, pdMS_TO_TICKS(100)) == pdPASS) {	// podgladamy wartosc z kolejki
@@ -135,6 +140,9 @@ void commTask(void *args) {
 				new_data_flag = 1; 			// there is new data
 				error_flag = 0;
 				last_measurement_id = data.counter;	// update local counter
+			} else if (queue_size == 0) {
+				new_data_flag = 0;
+				error_flag = 1;
 			} else {
 				new_data_flag = 0; 		// if counters are the same, then there is no new data
 				error_flag = 0;
@@ -149,6 +157,90 @@ void commTask(void *args) {
 		vTaskDelayUntil(&xLastWakeTime, period);
 	}
 }
+
+
+
+// subtask 2:
+//void measureTask(void *args) {
+//	TickType_t xLastWakeTime;
+//	BaseType_t xStatus;
+//
+//	xLastWakeTime = xTaskGetTickCount();
+//
+//	for (;;) {
+//		xStatus = xQueueSendToBack(queue, &measurement, 0);	// wstaw wartosc do kolejki
+//
+//		if (xStatus != pdPASS) {	// nie udalo sie
+//			if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {
+//				queueError = QueueWriteProblem;
+//				xSemaphoreGive(mutex);
+//			}
+//		}
+//
+//		if (xStatus == pdPASS) {		// udalo sie
+//			if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {
+//				queueError = QueueOK;
+//				xSemaphoreGive(mutex);
+//			}
+//		}
+//
+//		vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(300));	// 300 ms period
+//	}
+//}
+//
+//void commTask(void *args) {
+//	TickType_t xLastWakeTime;
+//	uint16_t measurement_local = 0;
+//	uint16_t flag_local;
+//	uint16_t histeresis = 0;
+//	BaseType_t queue_size;
+//	BaseType_t xStatus;
+//
+//	xLastWakeTime = xTaskGetTickCount();
+//	TickType_t period = pdMS_TO_TICKS(300);	// normal speed: 300, fast: 100 (more than 12 samples in queue), slow: 500 (less than 4 samples in queue)
+//
+//	for (;;) {
+//		queue_size = uxQueueMessagesWaiting(queue);		// rozmiar kolejki
+//
+//		if (queue_size > 12 && histeresis != 1) {		// dopasowanie okresu
+//			period = pdMS_TO_TICKS(100);
+//			histeresis = 1;
+//		} else if (queue_size < 4 && histeresis != 2) {
+//			period = pdMS_TO_TICKS(500);
+//			histeresis = 2;
+//		}
+//
+//		xStatus = xQueueReceive(queue, &measurement_local, 0);	// odczyt z kolejki do lokalnej zmiennej
+//
+//
+//		if (xStatus == pdPASS) {		// ustaw lokalnie flage bledu
+//			flag_local = QueueOK;
+//		} else if (queue_size == 0) {
+//			flag_local = QueueEmpty;
+//		} else {
+//			flag_local = QueueCantRead;
+//		}
+//
+//		if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {	// ustaw flage globalnie
+//			queueError = flag_local;
+//			xSemaphoreGive(mutex);
+//		}
+//
+//		if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {	// odczytaj status przed printfem
+//			flag_local = queueError;
+//			xSemaphoreGive(mutex);
+//		}
+//
+////		printf("Time: %lu, measured value: %u, queue size: %lu, error: %d\r\n ", HAL_GetTick(), measurement_local, queue_size, flag_local);
+//		printf("259382; %lu; %u; %lu; %d\r\n", HAL_GetTick(), measurement_local, queue_size, flag_local);
+//
+//		vTaskDelayUntil(&xLastWakeTime, period);
+//	}
+//}
+
+
+
+
 
 /* USER CODE END 0 */
 
@@ -190,7 +282,7 @@ int main(void)
 	// --> start TIM1 to generate PWM signal on TIMER3 connector
   	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
 	// --> start TIM6 in interrupt
-  	HAL_TIM_Base_Start_IT(&htim6);
+  	HAL_TIM_Base_Start_IT(&htim6);	// subtask 1: HAL_TIM_Base_Start(&htim6);
 	// --> start ADC1 in DMA mode
   	HAL_ADC_Start_DMA(&hadc1, (uint32_t *) &measurement, 1);
 	// --> create a mutex
@@ -210,8 +302,9 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 	while (1) {
-//		printf("Measured value: %u; time: %lu \n", measurement, HAL_GetTick());
-//		HAL_Delay(1000);
+		// subtask 1:
+		//printf("259382; %lu; %u\r\n", HAL_GetTick(), measurement);
+		//HAL_Delay(1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
