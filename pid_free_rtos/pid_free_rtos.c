@@ -31,12 +31,13 @@
 // --> include all necessary headers for
 // printf() redirection
 // FreeRTOS related headers
-//#include "pid.h"
-#include "stdio.h"
-#include "FreeRTOS.h"
-#include "task.h"
-#include "semphr.h"
-#include "queue.h"
+
+#include "pid.h"
+#include <stdio.h>
+#include <FreeRTOS.h>
+#include <task.h>
+#include <semphr.h>
+#include <queue.h>
 
 /* USER CODE END Includes */
 
@@ -47,10 +48,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-int _write(int file, char *ptr, int len) {
-	HAL_UART_Transmit(&huart2, (uint8_t *) ptr, len, 50);
-	return len;
-}
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -90,7 +88,10 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+int _write(int file, char *ptr, int len) {
+	HAL_UART_Transmit(&huart2, (uint8_t *) ptr, len, 50);
+	return len;
+}
 
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
@@ -125,14 +126,53 @@ void measureTask(void *args) {
 }
 
 void controlTask(void *args) {
-	TickType_t xLastWakeTime;
+    TickType_t xLastWakeTime = xTaskGetTickCount();
 
-	xLastWakeTime = xTaskGetTickCount();
+    pid_controller_t pid;
 
-	for (;;) {
+    pid.kp = 4.0f;
+    pid.ki = 0.3f;
+    pid.kd = 0.1f;
 
-	}
+    pid.min = 0;
+    pid.max = 4095;
+
+    pid.e = 0;
+    pid.e_prev = 0;
+    pid.e_sum = 0;
+
+    uint32_t _measured = 0;
+    uint32_t _desired = 0;
+    uint32_t _control = 0;
+
+    for (;;) {
+        if (xQueuePeek(measured_queue, &_measured, 100) == pdPASS) {}
+
+        if (xQueuePeek(desired_queue, &_desired, 100) != pdPASS) {
+            _desired = 0;
+        }
+
+        _control = pid_calc(&pid, _desired, _measured);
+
+        HAL_DAC_Start(&hdac1, DAC_CHANNEL_1);
+        HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_1, DAC_ALIGN_12B_R, _control);
+
+        if (xQueueOverwrite(control_queue, (void*)&_control) != pdPASS) {
+            if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {
+                queueError = QueueWriteProblem;
+                xSemaphoreGive(mutex);
+            }
+        } else {
+            if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {
+                queueError = QueueOK;
+                xSemaphoreGive(mutex);
+            }
+        }
+
+        vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(10));	// 10 ms = 100 Hz
+    }
 }
+
 
 void commTask(void *args) {
 	TickType_t xLastWakeTime = xTaskGetTickCount();
@@ -178,7 +218,6 @@ void userTask(void *args) {
  */
 int main(void) {
 	/* USER CODE BEGIN 1 */
-
 	/* USER CODE END 1 */
 
 	/* MCU Configuration--------------------------------------------------------*/
