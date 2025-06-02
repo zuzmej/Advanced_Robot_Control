@@ -63,10 +63,6 @@ enum QueueStatus {
 	QueueOK, QueueWriteProblem, QueueEmpty, QueueCantRead
 };
 
-enum QueueMessages {
-	QueueMsgNoData, QueueMsgNewData, QueueMsgNewDataChange,
-};
-
 uint8_t received_uart;
 uint16_t measurement;
 uint32_t desired_value = 0;
@@ -75,8 +71,8 @@ uint16_t control_value;
 SemaphoreHandle_t mutex;
 uint8_t queueError = QueueOK;
 QueueHandle_t measured_queue;  // ADC values
-QueueHandle_t desired_queue;   // Desired values
-QueueHandle_t control_queue;  // Control signals
+QueueHandle_t desired_queue;   // desired values
+QueueHandle_t control_queue;  // control signals
 
 /* USER CODE END PV */
 
@@ -101,26 +97,27 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 }
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
-	if(hadc->Instance == ADC1) {
-		measurement = HAL_ADC_GetValue(hadc);
-
-		BaseType_t xStatus = xQueueSendToBack(measured_queue, &measurement, 0);	// wstawia odpowiednia wartosc do odpowiedniej kolejki
-
-		if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {
-			if (xStatus != pdPASS) {	// jesli sie nie udalo
-				queueError = QueueWriteProblem;
-			} else {					// jesli sie udalo
-				queueError = QueueOK;
-			}
-			xSemaphoreGive(mutex);
-		}
-	}
 }
 
 void measureTask(void *args) {
 	TickType_t xLastWakeTime = xTaskGetTickCount();
+
 	for (;;) {
-		HAL_ADC_Start_IT(&hadc1);
+		if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK){
+				measurement = HAL_ADC_GetValue(&hadc1);
+				HAL_ADC_Start(&hadc1);
+			}
+
+			BaseType_t xStatus = xQueueOverwrite(measured_queue, &measurement);
+
+			if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {
+				if (xStatus != pdPASS) {	// jesli sie nie udalo
+					queueError = QueueWriteProblem;
+				} else {					// jesli sie udalo
+					queueError = QueueOK;
+				}
+				xSemaphoreGive(mutex);
+			}
 		vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(10));		// 10 ms = 100 Hz
 	}
 }
@@ -176,13 +173,22 @@ void controlTask(void *args) {
 
 void commTask(void *args) {
 	TickType_t xLastWakeTime = xTaskGetTickCount();
-	uint16_t _measured = 0;
+	uint32_t _measured = 0;
 	uint32_t _desired = 0;
+	uint32_t _control = 0;
+	uint8_t _queueError = 0;
 
 	for (;;) {
 		if (xQueuePeek(measured_queue, &_measured, 100) == pdPASS) {}
 		if (xQueuePeek(desired_queue, &_desired, 100) == pdPASS) {}
-		printf("mv: %u, dv: %lu\r\n", _measured, _desired);
+		if (xQueuePeek(control_queue, &_control, 100) == pdPASS) {}
+
+		if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {
+		    _queueError = queueError;
+		    xSemaphoreGive(mutex);
+		}
+
+		printf("mv: %lu, dv: %lu, cs: %lu, queueError: %u\r\n", _measured, _desired, _control, _queueError);
 		vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(500));  // 2 Hz = 500 ms
 	}
 }
@@ -194,7 +200,7 @@ void userTask(void *args) {
 		if (received_uart >= '0' && received_uart <= '8') {
 			desired_value = (received_uart - '0') * 500;	// ascii to integer
 
-			BaseType_t xStatus = xQueueSendToBack(desired_queue, &desired_value, 0);
+			BaseType_t xStatus = xQueueOverwrite(desired_queue, &desired_value);
 
 			if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {
 				if (xStatus == pdPASS) {
@@ -244,7 +250,7 @@ int main(void) {
 	MX_DAC1_Init();
 	/* USER CODE BEGIN 2 */
 
-	HAL_ADC_Start_IT(&hadc1);
+	HAL_ADC_Start(&hadc1);
 	// enable UART receive in interrupt mode
 	HAL_UART_Receive_IT(&huart2, &received_uart, 1);
 
