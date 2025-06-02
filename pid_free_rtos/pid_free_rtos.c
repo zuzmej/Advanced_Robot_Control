@@ -71,7 +71,7 @@ enum QueueMessages {
 
 uint8_t received_uart;
 uint16_t measurement;
-uint16_t desired_value;
+uint32_t desired_value = 0;
 uint16_t control_value;
 
 SemaphoreHandle_t mutex;
@@ -135,24 +135,40 @@ void controlTask(void *args) {
 }
 
 void commTask(void *args) {
-	TickType_t xLastWakeTime;
-
-	xLastWakeTime = xTaskGetTickCount();
+	TickType_t xLastWakeTime = xTaskGetTickCount();
+	uint16_t _measured = 0;
+	uint32_t _desired = 0;
 
 	for (;;) {
-
+		if (xQueuePeek(measured_queue, &_measured, 100) == pdPASS) {}
+		if (xQueuePeek(desired_queue, &_desired, 100) == pdPASS) {}
+		printf("mv: %u, dv: %lu\r\n", _measured, _desired);
+		vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(500));  // 2 Hz = 500 ms
 	}
 }
 
 void userTask(void *args) {
-	TickType_t xLastWakeTime;
-
-	xLastWakeTime = xTaskGetTickCount();
+	TickType_t xLastWakeTime = xTaskGetTickCount();
 
 	for (;;) {
+		if (received_uart >= '0' && received_uart <= '8') {
+			desired_value = (received_uart - '0') * 500;	// ascii to integer
 
+			BaseType_t xStatus = xQueueSendToBack(desired_queue, &desired_value, 0);
+
+			if (xSemaphoreTake(mutex, portMAX_DELAY) == pdTRUE) {
+				if (xStatus == pdPASS) {
+					queueError = QueueOK;
+				} else {
+					queueError = QueueWriteProblem;
+				}
+				xSemaphoreGive(mutex);
+			}
+		}
+		vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(100));  // 100 ms = 10 Hz
 	}
 }
+
 
 /* USER CODE END 0 */
 
